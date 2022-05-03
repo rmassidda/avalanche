@@ -217,11 +217,11 @@ class AGSPlugin(SupervisedPlugin):
             return
 
         # Check if properties have been initialized
-        if not self.importance:
+        if self.importance is None:
             raise ValueError("Importance is not available")
-        if not self.params:
+        if self.params is None:
             raise ValueError("Parameters are not available")
-        if not strategy.loss:
+        if strategy.loss is None:
             raise ValueError("Loss is not available")
 
         # Initialize penalty terms

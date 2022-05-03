@@ -42,6 +42,7 @@ from avalanche.training.supervised import (
     CoPE,
     StreamingLDA,
     MAS,
+    AGS,
 )
 from avalanche.training.supervised.cumulative import Cumulative
 from avalanche.training.supervised.icarl import ICaRL
@@ -795,6 +796,35 @@ class StrategyTest(unittest.TestCase):
             criterion,
             lambda_reg=1.0,
             alpha=0.5,
+            train_mb_size=10,
+            device=self.device,
+            eval_mb_size=50,
+            train_epochs=2,
+        )
+        benchmark = self.load_benchmark(use_task_labels=True)
+        self.run_strategy(benchmark, strategy)
+
+    def test_ags(self):
+        # SIT scenario
+        model, optimizer, criterion, my_nc_benchmark = self.init_sit()
+        strategy = AGS(
+            model,
+            optimizer,
+            criterion,
+            targets=[],
+            train_mb_size=10,
+            device=self.device,
+            eval_mb_size=50,
+            train_epochs=2,
+        )
+        self.run_strategy(my_nc_benchmark, strategy)
+
+        # MT scenario
+        strategy = AGS(
+            model,
+            optimizer,
+            criterion,
+            targets=[],
             train_mb_size=10,
             device=self.device,
             eval_mb_size=50,

@@ -14,6 +14,7 @@ from torch.nn import Module, CrossEntropyLoss
 from torch.optim import Optimizer, SGD
 
 from avalanche.models.pnn import PNN
+from avalanche.training.plugins.ags import HookableModule
 from avalanche.training.plugins.evaluation import default_evaluator
 from avalanche.training.plugins import (
     SupervisedPlugin,
@@ -32,6 +33,7 @@ from avalanche.training.plugins import (
     GSS_greedyPlugin,
     LFLPlugin,
     MASPlugin,
+    AGSPlugin,
 )
 from avalanche.training.templates.base import BaseTemplate
 from avalanche.training.templates.supervised import SupervisedTemplate
@@ -1195,6 +1197,90 @@ class MAS(SupervisedTemplate):
         )
 
 
+class AGS(SupervisedTemplate):
+    """Adaptive Group Sparse (AGS) regularization strategy.
+
+    See AGS plugin for details.
+    This strategy does not use task identities.
+    """
+
+    def __init__(
+        self,
+        model: Module,
+        optimizer: Optimizer,
+        criterion,
+        targets: List[HookableModule],
+        important_reg: float = 1.0,
+        unimportant_reg: float = 1.0,
+        epsilon: float = 1e-6,
+        decay_factor: float = 0.5,
+        verbose: bool = False,
+        train_mb_size: int = 1,
+        train_epochs: int = 1,
+        eval_mb_size: int = 1,
+        device=None,
+        plugins: Optional[List[SupervisedPlugin]] = None,
+        evaluator: EvaluationPlugin = default_evaluator,
+        eval_every=-1,
+        **base_kwargs
+    ):
+        """Init.
+
+        :param model: The model.
+        :param optimizer: The optimizer to use.
+        :param criterion: The loss criterion to use.
+        :param targets: List of HookableModule instances that should be
+                influenced by the strategy.
+        :param important_reg: hyperparameter weighting the penalty term
+                for the influence of the important parameters.
+        :param unimportant_reg: hyperparameter weighting the penalty term
+                for the influence of the unimportant parameters.
+        :param epsilon: threshold to determine if a parameter is important.
+        :param decay_factor: decay factor for the importance.
+        :param verbose: when True, the computation of the influence of
+               each parameter shows a progress bar.
+        :param train_mb_size: The train minibatch size. Defaults to 1.
+        :param train_epochs: The number of training epochs. Defaults to 1.
+        :param eval_mb_size: The eval minibatch size. Defaults to 1.
+        :param device: The device to use. Defaults to None (cpu).
+        :param plugins: Plugins to be added. Defaults to None.
+        :param evaluator: (optional) instance of EvaluationPlugin for logging
+            and metric computations.
+        :param eval_every: the frequency of the calls to `eval` inside the
+            training loop. -1 disables the evaluation. 0 means `eval` is called
+            only at the end of the learning experience. Values >0 mean that
+            `eval` is called every `eval_every` epochs and at the end of the
+            learning experience.
+        :param **base_kwargs: any additional
+            :class:`~avalanche.training.BaseTemplate` constructor arguments.
+        """
+
+        # Instantiate plugin
+        ags = AGSPlugin(
+            targets, unimportant_reg, important_reg, decay_factor,
+            epsilon=epsilon, verbose=verbose)
+
+        # Add plugin to the strategy
+        if plugins is None:
+            plugins = [ags]
+        else:
+            plugins.append(ags)
+
+        super().__init__(
+            model,
+            optimizer,
+            criterion,
+            train_mb_size=train_mb_size,
+            train_epochs=train_epochs,
+            eval_mb_size=eval_mb_size,
+            device=device,
+            plugins=plugins,
+            evaluator=evaluator,
+            eval_every=eval_every,
+            **base_kwargs
+        )
+
+
 __all__ = [
     "Naive",
     "PNNStrategy",
@@ -1212,4 +1298,5 @@ __all__ = [
     "CoPE",
     "LFL",
     "MAS",
+    "AGS",
 ]
